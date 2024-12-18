@@ -23,6 +23,11 @@ Using SMDesigner with R2R Software:
        Download the package SMDesigner-1.0.0.tar.gz.
           https://github.com/lilihou/SMDesigner_0.1/tree/main/dist
        Install it using pip with the command: pip install <download path>SMDesigner-1.0.0.tar.gz.
+       Test the program:
+          1. Open your command line interface.
+          2. Type 'SMDesigner' to launch the program.
+          3. Then, type 'test' to run a default test.
+        
        
       
       
