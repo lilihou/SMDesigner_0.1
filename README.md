@@ -1,35 +1,27 @@
-SMDesigner - Structure mutation designer
-
-    SMDesigner automates mutation for conserved RNA structures, ensuring minimal 
-    alterations to disrupt the structure, which can affect RNA function. SMDesigner 
-    work is based on the consences structure feature of RNA. SMDesigner chooses 
-    base pairs for mutation based on the number and position of covariation mutations, 
-    as well as the stem's length. Then it makes two types of mutation for each 
-    sequence, one is disruptive mutation another is restorative mutation.
-
-------------------------------------------------------------------------
-SMDesigner Install
-
+# SMDesigner - Structure mutation designer
+SMDesigner automates mutation for conserved RNA structures, ensuring minimal 
+alterations to disrupt the structure, which can affect RNA function. SMDesigner 
+work is based on the consences structure feature of RNA. SMDesigner chooses 
+base pairs for mutation based on the number and position of covariation mutations, 
+as well as the stem's length. Then it makes two types of mutation for each 
+sequence, one is disruptive mutation another is restorative mutation.
+## SMDesigner Install
 SMDesigner comes with setup tools and can be installed using pip:
+Download the package [SMDesigner-1.0.0.tar.gz](https://github.com/lilihou/SMDesigner_0.1/tree/main/dist).        
+Install it using pip with the command: 
 
-    Download the package SMDesigner-1.0.0.tar.gz.
-        https://github.com/lilihou/SMDesigner_0.1/tree/main/dist
-    Install it using pip with the command: pip install <download path>SMDesigner-1.0.0.tar.gz.
-    
+    pip install <storage path>SMDesigner-1.0.0.tar.gz. 
 For more details, refer to the README_INSTALL.md file.
-
-------------------------------------------------------------------------
-SMDesigner test running
-
+## SMDesigner test running
 To run a test after installing SMDesigner using the command pip install SMDesigner-1.0.0.tar.gz, 
 follow these steps:
-
     1. Open your command line interface.
     2. Type 'SMDesigner' to launch the program.
     3. Then, type 'test' to run a default test.
-------------------------------------------------------------------------
-SMDesigner running the sample
-
+    
+    SMDesigner
+    test
+## SMDesigner running the sample
 After successfully running a test in SMDesigner and seeing the output "test finished," 
 you can proceed to run your own sample data by following these steps:
 
@@ -39,8 +31,9 @@ you can proceed to run your own sample data by following these steps:
     'C:\Users\YourName\Documents', 
     you should type 
     'C:\Users\YourName\Documents\sample_data'.
-
+    
 Drawing the secondary structure for each sequence with flag --–run-r2r.
+
     1. Type 'SMDesigner --run-r2r' to launch the program with flag function
     2. Type the 'test' or '<the path to your sample folder>'
 
