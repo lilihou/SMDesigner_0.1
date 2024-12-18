@@ -4,7 +4,8 @@ Download the package file from:
 System requirements
 
     Operating system: 
-      SMDesigner is written in Python, but it requires the external software R2R, which is written in C and Perl. Therefore, this program needs to be run on UNIX, Linux, or MacOS systems.
+      SMDesigner is a Python-based program that requires the external software R2R, written in C and Perl. As a result, it must be run on UNIX, Linux, or macOS systems,
+      or in a compatible environment such as Cygwin or WSL on Windows.
      
     Compiler: 
       Since the R2R source code is written in C and Perl, you will need the GNU C compiler (gcc) and the C++ compiler (g++). Ensure your PATH environmental variable includes a directory with a Perl executable.
@@ -14,12 +15,13 @@ Dependencies:
       R2R (Weinberg and Breaker, 2011) (for marking RNA structure feature),
       the Infernal library package (http://eddylab.org/infernal/), this is required by R2R.
 
-SMDesigner has been test successful UNIX and MacOS system.
+SMDesigner has been test successful UNIX, MacOS and Cygwin or WSL on Windows system.
 
 Using SMDesigner with R2R Software: 
 
-    if you already have R2R installed on your computer: 
-      you could download the package, Unzip the package, and run dirrectly ./SMDesigner/ python SMDsigner3_test.py.
+    if you already have R2R installed on your computer, you could use SMDesigner follow below: 
+      
+      
     if you didn't have R2R: 
       There is automatic install program to install r2r in SMDesigner when you first run program. Becaused of the r2r need special environment to install, this may be not work for some computer. if so, you need to install r2r by yourself, you can refer to:
       https://sourceforge.net/projects/weinberg-r2r/
