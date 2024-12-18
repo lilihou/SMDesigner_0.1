@@ -19,7 +19,11 @@ SMDesigner has been test successful UNIX, MacOS and Cygwin or WSL on Windows sys
 
 Using SMDesigner with R2R Software: 
 
-    if you already have R2R installed on your computer, you could use SMDesigner follow below: 
+    if you already have R2R installed on your computer, you could use SMDesigner follow below:
+       Download the package SMDesigner-1.0.0.tar.gz.
+          https://github.com/lilihou/SMDesigner_0.1/tree/main/dist
+       Install it using pip with the command: pip install <download path>SMDesigner-1.0.0.tar.gz.
+       
       
       
     if you didn't have R2R: 
