@@ -13,7 +13,8 @@ SMDesigner Install
 SMDesigner comes with setup tools and can be installed using pip:
 
     Download the package SMDesigner-1.0.0.tar.gz.
-    Install it using pip with the command: pip install SMDesigner-1.0.0.tar.gz.
+        https://github.com/lilihou/SMDesigner_0.1/tree/main/dist
+    Install it using pip with the command: pip install <download path>SMDesigner-1.0.0.tar.gz.
     
 For more details, refer to the README_INSTALL.md file.
 
