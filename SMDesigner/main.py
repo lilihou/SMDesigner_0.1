@@ -46,7 +46,7 @@ def create_output_folders(output_folders):
 
 
 def process_files_for_r2r(input_folder, output_folder_r2r):
-    #print('process_files_for_r2r start')
+    print('process_files_for_r2r start')
     # ... (your existing code)
     #files_r2r = os.listdir(input_folder)
     files_r2r = [f for f in os.listdir(input_folder) if f.endswith('.sto')]
@@ -537,7 +537,7 @@ def process_files_for_struc_note(input_fold_seq_stuc,output_folder_seq_struc_add
     for file_seq_struc in files_seq_struc:
         process_single_seq_struc_file1(input_fold_seq_stuc, output_folder_seq_struc_add, file_seq_struc)
 def process_single_seq_struc_file1(input_fold_seq_stuc, output_folder_seq_struc_add, file_seq_struc):
-    #print('process_single_seq_struc_file1 start')
+    print('process_single_seq_struc_file1 start')
     input_file=input_fold_seq_stuc / file_seq_struc
     output_file=output_folder_seq_struc_add / (file_seq_struc[0:-9]+".seqStrucAdd")
     foo=open('no_struc_mark.txt','w')
@@ -1025,13 +1025,14 @@ def mu_po3(num,str5,str3,str1,str4):
 def process_files_make_mutation(input_folder_structure_add,output_fold_fa):
     #print('process_files_make_mutation start')
     structure_files = [f for f in os.listdir(input_folder_structure_add) if f.endswith('.seqStrucAdd')]
-    #print(structure_files)
+    print("starting processing mutation")
 
 
     structure_files=os.listdir(input_folder_structure_add)
     for file in structure_files:
 
         process_single_structure_add(input_folder_structure_add,file,output_fold_fa)
+
 def process_single_structure_add(input_folder_structure_add,file,output_fold_fa):
     #print('process_single_structure_add start')
     input_file_struc=input_folder_structure_add / file
@@ -1133,7 +1134,7 @@ def process_single_structure_add(input_folder_structure_add,file,output_fold_fa)
 #[('stem_s1_0-3', 1), ('stem_s1_1-2', 0)]
 
         if num_all_pair>2:
-            #print('structure work')
+            print('structure work')
             
 
             if dic1[0][1]>1:
@@ -1179,7 +1180,7 @@ def process_single_structure_add(input_folder_structure_add,file,output_fold_fa)
             fo.write(seq_mu1.replace('.','').replace('-',''))
             fo.write(seq_mu2_id)
             fo.write(seq_mu2.replace('.','').replace('-',''))
-            #print('mutation successfully')
+            print('mutation successfully')
         #fo.write(p1,n2,p0,n0)
         else:
 
@@ -1248,11 +1249,11 @@ def main_sample(input_folder):
     process_files_for_r2r(input_folder, output_folder_r2r)
 
     #process_files_for_r2r(input_folder, output_folder_r2r)
-    #print('R2R run finished')
+    print('R2R run finished')
     process_files_for_seq_struc(output_folder_r2r, output_folder_seq_struc, no_struc_ribo_file)
-    #print('common style finished')
+    print('common style finished')
     process_files_for_struc_note(output_folder_seq_struc,output_folder_seq_struc_add)
-    #print('structure feature added' )
+    print('structure feature added' )
     process_files_make_mutation(output_folder_seq_struc_add,output_fold_fa)
     #print(output_fold_fa)
     print('SMDesigner mutation design finished')
