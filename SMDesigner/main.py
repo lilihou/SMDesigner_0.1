@@ -617,411 +617,381 @@ def process_single_seq_struc_file1(input_fold_seq_stuc, output_folder_seq_struc_
                 foo.write(ff)
 ############################################################make mutation from test_make_mutation.py and make_mu_struc3.py 
 def cov_po(b):
-    if b[-1]=='l':
-        d=b[0:-1]+'r'
-        return(d)
-    elif b[-1]=='L':
-        d=b[0:-1]+'R'
-        return(d)
-    elif b[-1]=='r':
-        d=b[0:-1]+'l'
-        return(d)
-    elif b[-1]=='R':
-        d=b[0:-1]+'L'
-        return(d)
+    if not isinstance(b, str):
+        return None
+    if b[-1] == 'l':
+        return b[0:-1] + 'r'
+    elif b[-1] == 'L':
+        return b[0:-1] + 'R'
+    elif b[-1] == 'r':
+        return b[0:-1] + 'l'
+    elif b[-1] == 'R':
+        return b[0:-1] + 'L'
+    return None  # Return None for invalid inputs
 
-def multi_sub(string,p,c):
-    new = []
-    for s in string:
-        new.append(s)
-    for index,point in enumerate(p):
+def multi_sub(string, p, c):
+    new = list(string)
+    for index, point in enumerate(p):
         new[point] = c[index]
     return ''.join(new)
 
-
-#::11111--11111.-------11111-111_____111-11111--------11111--11111,,,,,,,,,,,,,,,,,,,,,2222-----22______22----2222--------00000---0000,,,,,,,,.,3333333.____________333-------3333,,,,,,,,,,,,,,,,.,,,,,,44-44444___________4444444,,,,,,,0000-00000::::::::::::::::::::::
-#..1??0?..000?1........?1000.10?.....?01.0001?........1?000..?0??1.....................?1?0.....?2......2?....0?1?........?0???...00?1..........?02??0?.............?0?.......?20?.......................01.??001...........100??10.......1?00.???0?......................  
-#ls_str1=[aatcc-tcga,aa-tctcga]
-#str4=5s/5s/5s/5s/21L/22L/23L/7/8/9/16L/17L/18L/13/1L/2L/p/p/2R/1R/20/
-#str3o=????..??...............??2.
-#判断共序列配对是否存在于序列中，给每条序列修正结构信息
-def modi_basepair(str4,str3o,str1): 
-    ls=['CG','GC','AU','UA','GU','UG','AT','TA','TG','GT']
-    ls1=['1','0','?','2']
-    ls_com=str4.split('/')
-    ls4=[]
+def modi_basepair(str4, str3o, str1):
+    ls = ['CG', 'GC', 'AU', 'UA', 'GU', 'UG', 'AT', 'TA', 'TG', 'GT']
+    ls1 = ['1', '0', '?', '2']
+    ls_com = str4.split('/')
+    ls4 = []
     for i in range(len(str3o)):
         if str3o[i] in ls1:
-            #print(i)
-            n=ls_com[i]
-            m=cov_po(n)
-            j=ls_com.index(m)
-            basepair=str1[i]+str1[j]
-            if basepair not in ls:
-                #print(basepair)
-                #print(i,j)
-                ls4.append('.')
-            else:
-                ls4.append(str3o[i])
+            n = ls_com[i]
+            m = cov_po(n)
+            if m is None or m not in ls_com:
+                ls4.append('.')  # Handle invalid or missing complementary position
+                continue
+            try:
+                j = ls_com.index(m)
+                basepair = str1[i] + str1[j]
+                if basepair not in ls:
+                    ls4.append('.')
+                else:
+                    ls4.append(str3o[i])
+            except (ValueError, IndexError):
+                ls4.append('.')  # Handle index errors or invalid base pairs
         else:
             ls4.append(str3o[i])
-    #str3=modi_basepair(str4,str3,str1)
-    str3=''.join(ls4)
-    return(str3)
-##count number for structure feature, dic={stem_s1_0:num_cov},dic1={stem_:num_com},dic2={stem_:cons}
-def stem_cov_num(line1,line2):
-    #print('stem_cov_num start')
-    #print(line1)
-    #print(line2)
-    #line1=str5='s1_1,s1_1'
-    #line2=str3='?..22'
+    return ''.join(ls4)
 
-    ls=[]  #all stem_num
-    ls1=[]
-    ls_stem=['0','1','2','?']
-    dic={}
-    dic1={}
-    dic2={}
-    #matches = re.findall(r's[^/]+', line)
-    #line1=line1.replace('/',',')
-    line=re.findall(r's[^/]+',line1)
-    #print(line)
-    #line=[s1_0,s1_0]
-    #line=1111111111111111111111111111111111112222222222220000000003333333333333344444444444444000000000
+def stem_cov_num(line1, line2):
+    ls = []
+    ls_stem = ['0', '1', '2', '?']
+    dic = {}
+    dic1 = {}
+    dic2 = {}
+    line = re.findall(r's[^/]+', line1)
     for i in range(len(line)):
         if line[i] not in ls:
             ls.append(line[i])
-    #print(ls)
-        
-    ls_line1=line1.split('/')
+    ls_line1 = line1.split('/')
     for j in ls:
-        num=0  #covariation
-        num1=0  #lenth_stem
-        com=0  #compatiable mutation
-        conser=0
-        stem=0  #consertive basepair
+        num = 0
+        num1 = 0
+        com = 0
+        conser = 0
         for k in range(len(line2)):
-            if ls_line1[k]==j:
-                num1+=1
-                if line2[k]=='2':
-                    num+=1
-                elif line2[k]=='1':
-                    com+=1
-                elif line2[k]=='0':
-                    conser+=1
-                elif line2[k]=='?':
-                    stem+=1
-
-                else:
+            if k < len(ls_line1) and ls_line1[k] == j:
+                num1 += 1
+                if line2[k] == '2':
+                    num += 1
+                elif line2[k] == '1':
+                    com += 1
+                elif line2[k] == '0':
+                    conser += 1
+                elif line2[k] == '?':
                     pass
-        
-        if num1/2>1:
-            dic['stem_'+j+'-'+str(int(num1/2))]=int(num/2)
-            dic1['stem_'+j+'-'+str(int(num1/2))]=int(com/2)
-            dic2['stem_'+j+'-'+str(int(num1/2))]=int(conser/2)
-    dic=sorted(dic.items(), key=lambda item:item[1], reverse=True)
-    dic1=sorted(dic1.items(), key=lambda item:item[1], reverse=True)
-    dic2=sorted(dic2.items(), key=lambda item:item[1], reverse=True)
-    #print(dic)
-    #print('stem_cov_num ended')
-    return(dic,dic1,dic2)
-#cov>1
+        if num1 / 2 > 1:
+            dic['stem_' + j + '-' + str(int(num1 / 2))] = int(num / 2)
+            dic1['stem_' + j + '-' + str(int(num1 / 2))] = int(com / 2)
+            dic2['stem_' + j + '-' + str(int(num1 / 2))] = int(conser / 2)
+    dic = sorted(dic.items(), key=lambda item: item[1], reverse=True)
+    dic1 = sorted(dic1.items(), key=lambda item: item[1], reverse=True)
+    dic2 = sorted(dic2.items(), key=lambda item: item[1], reverse=True)
+    return dic, dic1, dic2
+
 def pick_stem(dic1):
-#dic1={stem_s1_0-5:1,stem_s1_1-5:1,stem_s2_0-5:1}
-    #print('pick_stem start')
-    if len(dic1)==1:
-        num2=dic1[0][0].split('-')[0][5::]
-        return num2
-    elif len(dic1)>1:
-        if dic1[0][1]!= dic1[1][1]:
-            num2=dic1[0][0].split('-')[0][5::]
-        #if numcov same,choose long stem
+    if len(dic1) == 1:
+        return dic1[0][0].split('-')[0][5:]
+    elif len(dic1) > 1:
+        if dic1[0][1] != dic1[1][1]:
+            return dic1[0][0].split('-')[0][5:]
         else:
-            dic_same_cov={}
+            dic_same_cov = {}
             for i in range(len(dic1)):
-                if dic1[i][1]==dic1[0][1]:
-                    dic_same_cov[(dic1[0][0].split('-')[0])]=dic1[0][0].split('-')[1]
-            dic_same_cov=sorted(dic_same_cov.items(), key=lambda item:item[1], reverse=True)
-            num2=dic_same_cov[0][0][5::]
-        return num2
-####cov_num>1     
-def mu_po(num,str5,str3,str1,str4,num1):
-    #print('mu_po start')
-    ls_str5=str5.split('/')
-    po=[]
-    nt=[]
-    p0=[]
-    n0=[]
-    p1=[]
-    n2=[]
-    dic={}
-    ls1=['CG','GC','AU','UA','GU','UG','AT','TA','TG','GT']
-    index=[]
-    ls_com=str4.split('/')
+                if dic1[i][1] == dic1[0][1]:
+                    dic_same_cov[(dic1[i][0].split('-')[0])] = dic1[i][0].split('-')[1]
+            dic_same_cov = sorted(dic_same_cov.items(), key=lambda item: item[1], reverse=True)
+            return dic_same_cov[0][0][5:]
+    return None  # Return None if dic1 is empty
+
+def mu_po(num, str5, str3, str1, str4, num1):
+    ls_str5 = str5.split('/')
+    po = []
+    nt = []
+    p0 = []
+    n0 = []
+    p1 = []
+    n2 = []
+    ls1 = ['CG', 'GC', 'AU', 'UA', 'GU', 'UG', 'AT', 'TA', 'TG', 'GT']
+    index = []
+    ls_com = str4.split('/')
     for i in range(len(str1)):
-        
-        if ls_str5[i]==num and str3[i]==num1 and i not in index:
-            n=ls_com[i]
-            n1=cov_po(n)
-            m=ls_com.index(n1)
-            mu1=str1[i]+str1[m]
-            if mu1 in ls1:
-
-                po.append(i)    
-                po.append(m)
-                index.append(m)
-                nt.append(str1[m])
-                nt.append(str1[i])
-
-    num_cov=len(po)
-    if num_cov==4:
-        p0=po
-        n0=nt
+        if i < len(ls_str5) and ls_str5[i] == num and str3[i] == num1 and i not in index:
+            n = ls_com[i]
+            n1 = cov_po(n)
+            if n1 is None or n1 not in ls_com:
+                continue
+            try:
+                m = ls_com.index(n1)
+                mu1 = str1[i] + str1[m]
+                if mu1 in ls1:
+                    po.append(i)
+                    po.append(m)
+                    index.append(m)
+                    nt.append(str1[m])
+                    nt.append(str1[i])
+            except (ValueError, IndexError):
+                continue
+    num_cov = len(po)
+    if num_cov == 4:
+        p0 = po
+        n0 = nt
         p1.append(p0[0])
         p1.append(p0[2])
         n2.append(n0[0])
         n2.append(n0[2])
-        
-    elif num_cov>4:
-        if (num_cov/2)%2==0:
-            num1=int(num_cov/2)-2
-            
-        elif (num_cov/2)%2==1:
-            num1=int(num_cov/2)-1
+    elif num_cov > 4:
+        if (num_cov / 2) % 2 == 0:
+            num1 = int(num_cov / 2) - 2
+        else:
+            num1 = int(num_cov / 2) - 1
         p0.append(po[num1])
-        p0.append(po[num1+1])
-        p0.append(po[num1+2])
-        p0.append(po[num1+3])
+        p0.append(po[num1 + 1])
+        p0.append(po[num1 + 2])
+        p0.append(po[num1 + 3])
         n0.append(nt[num1])
-        n0.append(nt[num1+1])
-        n0.append(nt[num1+2])
-        n0.append(nt[num1+3])
+        n0.append(nt[num1 + 1])
+        n0.append(nt[num1 + 2])
+        n0.append(nt[num1 + 3])
         p1.append(p0[0])
         p1.append(p0[2])
         n2.append(n0[0])
         n2.append(n0[2])
-    return(p1,n2,p0,n0) 
-#cov==1 
-def mu_po1(num,str5,str3,str1,str4):
-    #print('mu_po1 start')
-    #print(num)
-    #print(str5)
-    ls_str5=str5.split('/')
-    po=[]
-    nt=[]
-    p0=[]
-    n0=[]
-    p1=[]
-    n2=[]
-    dic={}
-    ls1=['CG','GC','AU','UA','GU','UG']
-    index=[]
-    ls_com=str4.split('/')
-    for i in range(len(str1)):
-        if ls_str5[i]==num and str3[i]=='2' and i not in index:
-            #print(str5[i])
-            n=ls_com[i]
+    return p1, n2, p0, n0
 
-            n1=cov_po(n)
-            m=ls_com.index(n1)
-            mu1=str1[i]+str1[m]
-            if mu1 in ls1:
-                po.append(i)    
-                po.append(m)
-                index.append(m)
-                nt.append(str1[m])
-                nt.append(str1[i])
-    
-    dic1,dic2,dic3=stem_cov_num(str5,str3)
-    #print(dic1)
-   #[('stem_s1_0-3', 1), ('stem_s1_1-2', 1)]
+def mu_po1(num, str5, str3, str1, str4):
+    ls_str5 = str5.split('/')
+    po = []
+    nt = []
+    p0 = []
+    n0 = []
+    p1 = []
+    n2 = []
+    ls1 = ['CG', 'GC', 'AU', 'UA', 'GU', 'UG']
+    index = []
+    ls_com = str4.split('/')
+    for i in range(len(str1)):
+        if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '2' and i not in index:
+            n = ls_com[i]
+            n1 = cov_po(n)
+            if n1 is None or n1 not in ls_com:
+                continue
+            try:
+                m = ls_com.index(n1)
+                mu1 = str1[i] + str1[m]
+                if mu1 in ls1:
+                    po.append(i)
+                    po.append(m)
+                    index.append(m)
+                    nt.append(str1[m])
+                    nt.append(str1[i])
+            except (ValueError, IndexError):
+                continue
+    dic1, dic2, dic3 = stem_cov_num(str5, str3)
+    num_com = 0
+    num_conser = 0
     for j in dic2:
-        #print(dic2)
-        if j[0].split('-')[0][5::]==num:
-            #print(j[0])
-            num_com=int(j[1])
-            #print(num_com)
-
+        if j[0].split('-')[0][5:] == num:
+            num_com = int(j[1])
     for k in dic3:
-        if k[0].split('-')[0][5::]==num:
-            num_conser=int(k[-1])
-    if num_com>=1:
+        if k[0].split('-')[0][5:] == num:
+            num_conser = int(k[-1])
+    if num_com >= 1:
         for i in range(len(str1)):
-            if ls_str5[i]==num and str3[i]=='1':
-                n=ls_com[i]
-                n1=cov_po(n)
-                m=ls_com.index(n1)
-                mu1=str1[i]+str1[m]
-                if mu1 in ls1:
-                    po.append(i)    
-                    po.append(m)
-                    #index.append(m)
-                    nt.append(str1[m])
-                    nt.append(str1[i])
-                    break
-            else:
-                pass
-    elif num_com==0:
-        if num_conser>=1:
-            for i in range(len(str1)):
-                if ls_str5[i]==num and str3[i]=='0':
-                    n=ls_com[i]
-                    n1=cov_po(n)
-                    m=ls_com.index(n1)
-                    mu1=str1[i]+str1[m]
+            if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '1':
+                n = ls_com[i]
+                n1 = cov_po(n)
+                if n1 is None or n1 not in ls_com:
+                    continue
+                try:
+                    m = ls_com.index(n1)
+                    mu1 = str1[i] + str1[m]
                     if mu1 in ls1:
-                        po.append(i)    
+                        po.append(i)
                         po.append(m)
-                        #index.append(m)
                         nt.append(str1[m])
                         nt.append(str1[i])
                         break
-        elif num_conser==0:
+                except (ValueError, IndexError):
+                    continue
+    elif num_com == 0:
+        if num_conser >= 1:
             for i in range(len(str1)):
-                if ls_str5[i]==num and str3[i]=='?':
-                    n=ls_com[i]
-                    n1=cov_po(n)
-                    m=ls_com.index(n1)
-                    mu1=str1[i]+str1[m]
+                if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '0':
+                    n = ls_com[i]
+                    n1 = cov_po(n)
+                    if n1 is None or n1 not in ls_com:
+                        continue
+                    try:
+                        m = ls_com.index(n1)
+                        mu1 = str1[i] + str1[m]
+                        if mu1 in ls1:
+                            po.append(i)
+                            po.append(m)
+                            nt.append(str1[m])
+                            nt.append(str1[i])
+                            break
+                    except (ValueError, IndexError):
+                        continue
+        elif num_conser == 0:
+            for i in range(len(str1)):
+                if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '?':
+                    n = ls_com[i]
+                    n1 = cov_po(n)
+                    if n1 is None or n1 not in ls_com:
+                        continue
+                    try:
+                        m = ls_com.index(n1)
+                        mu1 = str1[i] + str1[m]
+                        if mu1 in ls1:
+                            po.append(i)
+                            po.append(m)
+                            nt.append(str1[m])
+                            nt.append(str1[i])
+                            break
+                    except (ValueError, IndexError):
+                        continue
+    if po:
+        p1.append(po[0])
+        p1.append(po[2])
+        n2.append(nt[0])
+        n2.append(nt[2])
+    return p1, n2, po, nt
+
+def mu_po2(num, str5, str3, str1, str4):
+    ls_str5 = str5.split('/')
+    po = []
+    nt = []
+    p0 = []
+    n0 = []
+    p1 = []
+    n2 = []
+    ls1 = ['CG', 'GC', 'AU', 'UA', 'GU', 'UG']
+    index = []
+    ls_com = str4.split('/')
+    for i in range(len(str1)):
+        if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '1' and i not in index:
+            n = ls_com[i]
+            n1 = cov_po(n)
+            if n1 is None or n1 not in ls_com:
+                continue
+            try:
+                m = ls_com.index(n1)
+                mu1 = str1[i] + str1[m]
+                if mu1 in ls1:
+                    po.append(i)
+                    po.append(m)
+                    index.append(m)
+                    nt.append(str1[m])
+                    nt.append(str1[i])
+            except (ValueError, IndexError):
+                continue
+    dic1, dic2, dic3 = stem_cov_num(str5, str3)
+    num_conser = 0
+    for k in dic3:
+        if k[0].split('-')[0][-1] == num:
+            num_conser = int(k[-1])
+    if num_conser >= 1:
+        for i in range(len(str1)):
+            if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '0':
+                n = ls_com[i]
+                n1 = cov_po(n)
+                if n1 is None or n1 not in ls_com:
+                    continue
+                try:
+                    m = ls_com.index(n1)
+                    mu1 = str1[i] + str1[m]
                     if mu1 in ls1:
-                        po.append(i)    
+                        po.append(i)
                         po.append(m)
-                        #index.append(m)
                         nt.append(str1[m])
                         nt.append(str1[i])
                         break
-    p1.append(po[0])
-    p1.append(po[2])
-    n2.append(nt[0])
-    n2.append(nt[2])
-    #print('mu_po1 ended')
-    return(p1,n2,po,nt)
+                except (ValueError, IndexError):
+                    continue
+    elif num_conser == 0:
+        for i in range(len(str1)):
+            if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '?':
+                n = ls_com[i]
+                n1 = cov_po(n)
+                if n1 is None or n1 not in ls_com:
+                    continue
+                try:
+                    m = ls_com.index(n1)
+                    mu1 = str1[i] + str1[m]
+                    if mu1 in ls1:
+                        po.append(i)
+                        po.append(m)
+                        nt.append(str1[m])
+                        nt.append(str1[i])
+                        break
+                except (ValueError, IndexError):
+                    continue
+    if po:
+        p1.append(po[0])
+        p1.append(po[2])
+        n2.append(nt[0])
+        n2.append(nt[2])
+    return p1, n2, po, nt
 
-#com==1
-def mu_po2(num,str5,str3,str1,str4):
-    #print('mu_po2 start')
-    ls_str5=str5.split('/')
-    po=[]
-    nt=[]
-    p0=[]
-    n0=[]
-    p1=[]
-    n2=[]
-    dic={}
-    ls1=['CG','GC','AU','UA','GU','UG']
-    index=[]
-    ls_com=str4.split('/')
+def mu_po3(num, str5, str3, str1, str4):
+    ls_str5 = str5.split('/')
+    po = []
+    nt = []
+    p0 = []
+    n0 = []
+    p1 = []
+    n2 = []
+    ls1 = ['CG', 'GC', 'AU', 'UA', 'GU', 'UG']
+    index = []
+    ls_com = str4.split('/')
     for i in range(len(str1)):
-        if ls_str5[i]==num and str3[i]=='1' and i not in index:
-            n=ls_com[i]
-            n1=cov_po(n)
-            m=ls_com.index(n1)
-            mu1=str1[i]+str1[m]
-            if mu1 in ls1:
-                po.append(i)    
-                po.append(m)
-                index.append(m)
-                nt.append(str1[m])
-                nt.append(str1[i])
-    dic1,dic2,dic3=stem_cov_num(str5,str3)
-    #print(dic1)
-    #([('stem2-3', 1), ('stem3-5', 1), ('stem0-4', 0), ('stem1-17', 0), ('stem4-7', 0)], 
-#[('stem1-17', 4), ('stem4-7', 2), ('stem2-3', 1), ('stem0-4', 1), ('stem3-5', 0)], 
-#[('stem1-17', 8), ('stem0-4', 3), ('stem4-7', 3), ('stem3-5', 2), ('stem2-3', 1)])
-     
-#111____111,,,,,,,,,,,2222______2222-333__________________333:::::
-#00?....?00...........0?0?......?0?0.1??..................??1.....  
-    for k in dic3:
-        if k[0].split('-')[0][-1]==num:
-            num_conser=int(k[-1])
-    if num_conser>=1:
-        for i in range(len(str1)):
-            if str5[i]==num and str3[i]=='0':
-                n=ls_com[i]
-                n1=cov_po(n)
-                m=ls_com.index(n1)
-                mu1=str1[i]+str1[m]
+        if i < len(ls_str5) and ls_str5[i] == num and str3[i] == '0' and i not in index:
+            n = ls_com[i]
+            n1 = cov_po(n)
+            if n1 is None or n1 not in ls_com:
+                continue
+            try:
+                m = ls_com.index(n1)
+                mu1 = str1[i] + str1[m]
                 if mu1 in ls1:
-                    po.append(i)    
+                    po.append(i)
                     po.append(m)
-                    #index.append(m)
+                    index.append(m)
+                    nt.append(str1[m])
+                    nt.append(str1[i])
+            except (ValueError, IndexError):
+                continue
+    for i in range(len(str1)):
+        if i < len(ls_str5) and ls_str5[i].startswith('s') and str3[i] == '0' and i not in po and i not in index:
+            n = ls_com[i]
+            n1 = cov_po(n)
+            if n1 is None or n1 not in ls_com:
+                continue
+            try:
+                m = ls_com.index(n1)
+                mu1 = str1[i] + str1[m]
+                if mu1 in ls1:
+                    po.append(i)
+                    po.append(m)
                     nt.append(str1[m])
                     nt.append(str1[i])
                     break
-            else:
-                pass
-    elif num_conser==0:
-        for i in range(len(str1)):
-            if str5[i]==num and str3[i]=='?':
-                n=ls_com[i]
-                n1=cov_po(n)
-                m=ls_com.index(n1)
-                mu1=str1[i]+str1[m]
-                if mu1 in ls1:
-                    po.append(i)    
-                    po.append(m)
-                    #index.append(m)
-                    nt.append(str1[m])
-                    nt.append(str1[i])
-                    break
-    p1.append(po[0])
-    p1.append(po[2])
-    n2.append(nt[0])
-    n2.append(nt[2])
-    return(p1,n2,po,nt)
-#conser==1
-def mu_po3(num,str5,str3,str1,str4):
-    #print('mu_po3 start')
-    ls_str5=str5.split('/')
-    po=[]
-    nt=[]
-    p0=[]
-    n0=[]
-    p1=[]
-    n2=[]
-    dic={}
-    ls1=['CG','GC','AU','UA','GU','UG']
-    index=[]
-    ls_com=str4.split('/')
-    for i in range(len(str1)):
-        if ls_str5[i]==num and str3[i]=='0' and i not in index:
-            n=ls_com[i]
-            n1=cov_po(n)
-            m=ls_com.index(n1)
-            mu1=str1[i]+str1[m]
-            if mu1 in ls1:
-                po.append(i)    
-                po.append(m)
-                index.append(m)
-                nt.append(str1[m])
-                nt.append(str1[i])
-    dic1,dic2,dic3=stem_cov_num(str5,str3)
-    #print(dic1)
-    #([('stem2-3', 1), ('stem3-5', 1), ('stem0-4', 0), ('stem1-17', 0), ('stem4-7', 0)], 
-#[('stem1-17', 4), ('stem4-7', 2), ('stem2-3', 1), ('stem0-4', 1), ('stem3-5', 0)], 
-#[('stem1-17', 8), ('stem0-4', 3), ('stem4-7', 3), ('stem3-5', 2), ('stem2-3', 1)])
-    
-            #print(num_com)
-    for i in range(len(str1)):
-        if ls_str5[i].startswith('s') and str3[i]=='0' and i not in po and i not in index:
-            n=ls_com[i]
-            n1=cov_po(n)
-            m=ls_com.index(n1)
-            mu1=str1[i]+str1[m]
-            if mu1 in ls1:
-                po.append(i)    
-                po.append(m)
-                #index.append(m)
-                nt.append(str1[m])
-                nt.append(str1[i])
-                break
-    
-    
-    p1.append(po[0])
-    p1.append(po[2])
-    n2.append(nt[0])
-    n2.append(nt[2])
-    return(p1,n2,po,nt)
+            except (ValueError, IndexError):
+                continue
+    if po:
+        p1.append(po[0])
+        p1.append(po[2])
+        n2.append(nt[0])
+        n2.append(nt[2])
+    return p1, n2, po, nt
 def process_files_make_mutation(input_folder_structure_add,output_fold_fa):
     #print('process_files_make_mutation start')
     structure_files = [f for f in os.listdir(input_folder_structure_add) if f.endswith('.seqStrucAdd')]
@@ -1033,159 +1003,153 @@ def process_files_make_mutation(input_folder_structure_add,output_fold_fa):
 
         process_single_structure_add(input_folder_structure_add,file,output_fold_fa)
 
-def process_single_structure_add(input_folder_structure_add,file,output_fold_fa):
-    #print('process_single_structure_add start')
-    input_file_struc=input_folder_structure_add / file
-    #print(input_file_struc)
-    fi=open(input_file_struc,"r")
-    j=file.strip()[0:-12]+".mu.fa"
-    output_file_fa=output_fold_fa / j
-
-    fo=open(output_file_fa,"w")
-    ls=fi.readlines()
-    seq_mu_id=''
-    ls_com=[]
-    num_cov=0
-    num_com=0
-    num_conser=0
-    dic=[]
-    ls_str1=[]
-    num_str1=0
-    ls_seq_id=[]
-    ls_seq_wild=[]
-    ls_seq_mu_id=[]
+def process_single_structure_add(input_folder_structure_add, file, output_fold_fa):
+    input_file_struc = input_folder_structure_add / file
+    print(f"Processing input file: {input_file_struc}")
+    try:
+        fi = open(input_file_struc, "r")
+    except FileNotFoundError:
+        print(f"Error: Input file {input_file_struc} not found")
+        return
+    j = file.strip()[0:-12] + ".mu.fa"
+    output_file_fa = output_fold_fa / j
+    output_fold_fa.mkdir(parents=True, exist_ok=True)
+    fo = open(output_file_fa, "w")
+    ls = fi.readlines()
+    seq_mu_id = ''
+    ls_com = []
+    ls_str1 = []
+    num_str1 = 0
+    ls_seq_id = []
+    ls_seq_wild = []
+    ls_seq_mu_id = []
+    str2 = None
+    str3o = None
+    str4 = None
+    str5 = None
     for line in ls:
-        a=re.findall('^\w+\d+',line)
-        b=re.findall('#=GC SS_cons',line)
-        c=re.findall('#=GC cov_SS_cons',line)
-        d=re.findall('#=SMD mutation_struc',line)
-        e=re.findall('#=GF NUM_COV',line)
-        f=re.findall('#=SMD same_stem',line)
-        
+        a = re.findall(r'^\w+\d+', line)  # Use raw string for regex
+        b = re.findall(r'#=GC SS_cons', line)
+        c = re.findall(r'#=GC cov_SS_cons', line)
+        d = re.findall(r'#=SMD mutation_struc', line)
+        e = re.findall(r'#=GF NUM_COV', line)
+        f = re.findall(r'#=SMD same_stem', line)
         if a:
-
-            #string.replace(oldvalue, newvalue, count)
-            num_str1+=1
-            ls=line.strip().split()
-            seq_mu_id=ls[0]
-            seq_id='>'+'w'+str(num_str1)+'_'+ls[0]+'\n'
-            seq=ls[-1].replace('.','').replace('-','')+'\n'
-            #fo.write(seq_id)
-            #fo.write(seq)
+            num_str1 += 1
+            ls = line.strip().split()
+            seq_mu_id = ls[0]
+            seq_id = '>' + 'w' + str(num_str1) + '_' + ls[0] + '\n'
+            seq = ls[-1].replace('.', '').replace('-', '') + '\n'
             ls_seq_id.append(seq_id)
             ls_seq_wild.append(seq)
             ls_str1.append(ls[-1])
-            ls_seq_mu_id.append(seq_mu_id)          
-            
+            ls_seq_mu_id.append(seq_mu_id)
         elif b:
-#(((((--((,,,,,,,,,,,,,,,<<<--------<<<<<<<______________>>>>>>>>>>,,,,.
-            str2=line.strip().split()[-1]
+            str2 = line.strip().split()[-1]
         elif c:
-#1????..??...............??2........??00?1?..............?1?00??2??.....
-            str3o=line.strip().split()[-1]
-            
+            str3o = line.strip().split()[-1]
         elif d:
-            #5s/5s/5s/5s/21L/22L/23L/7/8/9/16L/17L/18L/13/1L/2L/p/p/2R/1R/20/3L/4L/5L/6L/7L/8L/9L/p/p/p/p/9R/8R/7R/6R/5R/4R/3R/39/18R/17R/16R/43/19L/20L/46/47/10L/11L/12L/p/p/12R/11R/10R/13L/14L/15L/p/p/15R/14R/13R/64/65/20R/19R/68/69/70/23R/22R/21R/3s
-            str4=line.strip().split()[-1]
-            ls_com=str4.split('/')
-
-        #elif e:
-#4    2    8  13
-            #ls_stem=line.strip().split()
-            #num_cov=int(ls_stem[-4])
-            #num_com=int(ls_stem[-3])
-            #num_conser=int(ls_stem[-2])
-            #num_all_pair=int(ls_stem[-1])
+            str4 = line.strip().split()[-1]
+            ls_com = str4.split('/')
         elif f:
-            #0/1/2/3/s3_0/s3_0/s3_0/7/8/9/s2_0/s2_0/s2_0/13/s1_0/s1_0/16/17/s1_0/s1_0/20/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/28/29/30/31/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/39/s2_0/s2_0/s2_0/43/s2_1/s2_1/46/47/s1_2/s1_2/s1_2/51/52/s1_2/s1_2/s1_2/s1_3/s1_3/s1_3/59/60/s1_3/s1_3/s1_3/64/65/s2_1/s2_1/68/69/70/s3_0/s3_0/s3_0/74
-#:::::::::::.::::1111.11111,,,,,,,,,,,,222--22222____22222--22233333333--33333_____..333333333333311111--1111:
-            str5=line.strip().split()[-1]
-            #dic=stem_num(str5)
-            #[('3stem', 13), ('1stem', 9), ('2stem', 8)]
-    #print(ls_str1)
-    #print(str2)
-    #print(str3)
-    #print(str5)
-    #ls_str1=[aatcc-tcga,aa-tctcga]
-    #str4=5s/5s/5s/5s/21L/22L/23L/7/8/9/16L/17L/18L/13/1L/2L/p/p/2R/1R/20/
-    #str3o=????..??...............??2.
+            str5 = line.strip().split()[-1]
+    if not ls_str1:
+        print(f"Error: No sequences found in {file}")
+        fi.close()
+        fo.close()
+        return
+    if str3o is None:
+        print(f"Error: #=GC cov_SS_cons annotation missing in {file}")
+        fi.close()
+        fo.close()
+        return
+    if str4 is None:
+        print(f"Error: #=SMD mutation_struc annotation missing in {file}")
+        fi.close()
+        fo.close()
+        return
+    if str5 is None:
+        print(f"Error: #=SMD same_stem annotation missing in {file}")
+        fi.close()
+        fo.close()
+        return
     for m in range(len(ls_str1)):
-        ##str3=????..2?...............??2.
-        str3=modi_basepair(str4,str3o,ls_str1[m])
-        #print(str3)
-        dic1=[]  #cov
-        dic2=[]  #com
-        dic3=[]  #conserve
-        dic4=[] #total num each stem
-
-        #dic1={stem_s1_0:num_cov},dic2={stem_:num_com},dic3={stem_:cons}
-        #ls_str5=str5.split('/')
-        dic1,dic2,dic3=stem_cov_num(str5,str3)
-        #print(dic1)
-        #print(dic2)
-        #print(dic3)
-        num_all_pair=0
+        str3 = modi_basepair(str4, str3o, ls_str1[m])
+        dic1, dic2, dic3 = stem_cov_num(str5, str3)
+        dic4 = []
+        num_all_pair = 0
         for i in dic1:
-            num_all_pair+=int(i[0].split('-')[-1])
-            dic4.append(((i[0].split('-')[0][5::]),(int(i[0].split('-')[-1]))))
-    
-#[('stem_s1_0-3', 1), ('stem_s1_1-2', 1)]
-#[('stem_s1_1-2', 1), ('stem_s1_0-3', 0)]
-#[('stem_s1_0-3', 1), ('stem_s1_1-2', 0)]
-
-        if num_all_pair>2:
+            num_all_pair += int(i[0].split('-')[-1])
+            dic4.append(((i[0].split('-')[0][5:]), (int(i[0].split('-')[-1]))))
+        if num_all_pair > 2:
             print('structure work')
-            
-
-            if dic1[0][1]>1:
-                num2=pick_stem(dic1)
-                
-                p1,n2,p0,n0=mu_po(num2,str5,str3,ls_str1[m],str4,'2')
-                
-            elif dic1[0][1]==1:
-                num2=pick_stem(dic1)
-                #print(ls_str5)
-                p1,n2,p0,n0=mu_po1(num2,str5,str3,ls_str1[m],str4)
-                #print(p1)
-            elif dic1[0][1]==0:
-                if dic2[0][1]>1:
-                    num2=pick_stem(dic2)
-                    p1,n2,p0,n0=mu_po(num2,str5,str3,ls_str1[m],str4,'1')
-                elif dic2[0][1]==1:
-                    num2=pick_stem(dic2)
-                    p1,n2,p0,n0=mu_po2(num2,str5,str3,ls_str1[m],str4)
-                elif dic2[0][1]==0:
-                    if dic3[0][1]>1:
-                        num2=pick_stem(dic3)
-                        p1,n2,p0,n0=mu_po(num2,str5,str3,ls_str1[m],str4,'0')
-                    elif dic3[0][1]==1:
-                        num2=pick_stem(dic3)
-                        p1,n2,p0,n0=mu_po3(num2,str5,str3,ls_str1[m],str4)
-                    elif dic3[0][1]==0:
-    #[('stem1-17', 8), ('stem0-4', 3), ('stem4-7', 3), ('stem3-5', 2), ('stem2-3', 1)]
-                        num2=dic4[0][0]
-                        if dic4[0][1]>1:
-                            #print(dic4)
-                            p1,n2,p0,n0=mu_po(num2,str5,str3,ls_str1[m],str4,'?')
+            if dic1 and dic1[0][1] > 1:
+                num2 = pick_stem(dic1)
+                if num2 is None:
+                    print(f'{file}: no valid stem selected')
+                    continue
+                p1, n2, p0, n0 = mu_po(num2, str5, str3, ls_str1[m], str4, '2')
+            elif dic1 and dic1[0][1] == 1:
+                num2 = pick_stem(dic1)
+                if num2 is None:
+                    print(f'{file}: no valid stem selected')
+                    continue
+                p1, n2, p0, n0 = mu_po1(num2, str5, str3, ls_str1[m], str4)
+            elif dic1 and dic1[0][1] == 0:
+                if dic2 and dic2[0][1] > 1:
+                    num2 = pick_stem(dic2)
+                    if num2 is None:
+                        print(f'{file}: no valid stem selected')
+                        continue
+                    p1, n2, p0, n0 = mu_po(num2, str5, str3, ls_str1[m], str4, '1')
+                elif dic2 and dic2[0][1] == 1:
+                    num2 = pick_stem(dic2)
+                    if num2 is None:
+                        print(f'{file}: no valid stem selected')
+                        continue
+                    p1, n2, p0, n0 = mu_po2(num2, str5, str3, ls_str1[m], str4)
+                elif dic2 and dic2[0][1] == 0:
+                    if dic3 and dic3[0][1] > 1:
+                        num2 = pick_stem(dic3)
+                        if num2 is None:
+                            print(f'{file}: no valid stem selected')
+                            continue
+                        p1, n2, p0, n0 = mu_po(num2, str5, str3, ls_str1[m], str4, '0')
+                    elif dic3 and dic3[0][1] == 1:
+                        num2 = pick_stem(dic3)
+                        if num2 is None:
+                            print(f'{file}: no valid stem selected')
+                            continue
+                        p1, n2, p0, n0 = mu_po3(num2, str5, str3, ls_str1[m], str4)
+                    elif dic3 and dic3[0][1] == 0:
+                        if dic4 and dic4[0][1] > 1:
+                            num2 = dic4[0][0]
+                            p1, n2, p0, n0 = mu_po(num2, str5, str3, ls_str1[m], str4, '?')
                         else:
-                            print(f'{file}less 2 basepair in each stem')
-            seq_mu1=multi_sub(ls_str1[m],p1,n2)+'\n'
-            seq_mu2=multi_sub(ls_str1[m],p0,n0)+'\n'
-        #seq_mu1=seq_mu.replace('-','')+'\n'
-            seq_mu1_id=">"+'m'+str(m+1)+'_1'+'_'+ls_seq_mu_id[m]+'\n'
-            seq_mu2_id=">"+'m'+str(m+1)+'_2'+'_'+ls_seq_mu_id[m]+'\n'
+                            print(f'{file} less 2 basepair in each stem')
+                            continue
+            else:
+                print(f'{file}: no valid stems found')
+                continue
+            if not p1 or not n2 or not p0 or not n0:
+                print(f'{file}: no valid mutations generated')
+                continue
+            seq_mu1 = multi_sub(ls_str1[m], p1, n2) + '\n'
+            seq_mu2 = multi_sub(ls_str1[m], p0, n0) + '\n'
+            seq_mu1_id = ">" + 'm' + str(m + 1) + '_1' + '_' + ls_seq_mu_id[m] + '\n'
+            seq_mu2_id = ">" + 'm' + str(m + 1) + '_2' + '_' + ls_seq_mu_id[m] + '\n'
             fo.write(ls_seq_id[m])
             fo.write(ls_seq_wild[m])
             fo.write(seq_mu1_id)
-            fo.write(seq_mu1.replace('.','').replace('-',''))
+            fo.write(seq_mu1.replace('.', '').replace('-', ''))
             fo.write(seq_mu2_id)
-            fo.write(seq_mu2.replace('.','').replace('-',''))
+            fo.write(seq_mu2.replace('.', '').replace('-', ''))
             print('mutation successfully')
-        #fo.write(p1,n2,p0,n0)
         else:
-
-            print(f'{file}:no structure')
-    #print('single_structure_add ended')
+            print(f'{file}: no structure')
+    fi.close()
+    fo.close()
+    print(f"Output written to: {output_file_fa}")
 
 # Main script
 def main_test(input_folder):
