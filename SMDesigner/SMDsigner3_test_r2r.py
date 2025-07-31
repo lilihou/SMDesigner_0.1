@@ -6,7 +6,7 @@ import subprocess
 import shutil
 from SMDesigner.main import main_test,main_sample
 from SMDesigner.r2r_drawing_flag_test import main_r2r_test, main_r2r_sample
-
+import platform
 '''
 def is_r2r_installed(path):
     #script_path = Path(__file__).parents[0]
@@ -22,7 +22,7 @@ def is_r2r_installed(path):
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
-'''
+
 def is_r2r_installed():
     try:
         # Use 'whereis' to find the R2R command
@@ -36,14 +36,42 @@ def is_r2r_installed():
     except FileNotFoundError:
         # 'whereis' command not found
         return False
+'''
+def is_r2r_installed():
+    try:
+        if platform.system() == "Windows":
+            # Use 'where' command on Windows to find the R2R executable
+            result = subprocess.run(["where", "r2r"], capture_output=True, text=True)
+        else:
+            # Use 'which' command on Unix-like systems to find the R2R executable
+            result = subprocess.run(["which", "r2r"], capture_output=True, text=True)
+        
+        # Print the result for debugging purposes
+        print(result.stdout)
+        
+        # Check if the output contains a valid path
+        if result.returncode == 0 and result.stdout.strip():
+            return True
+        else:
+            return False
+    except FileNotFoundError:
+        # Command ('where' or 'which') not found
+        return False
 def install_r2r(path_install_r2r):
+    if str(path_install_r2r).startswith('c/'):
+        path_install_r2r=str(path_install_r2r).replace('c/','/cygdrive/c/',1)
     try:
         # Assuming the installation script is named 'install_r2r.sh' and is in the current directory
         #print(path_install_r2r)
-        subprocess.run(['sudo', path_install_r2r], check=True)
-        print("R2R installation completed.")
+        print("R2R start install with sudo....")
+        print(path_install_r2r)
+        #subprocess.run(['sudo', path_install_r2r], check=True)
+        subprocess.run(['sh', path_install_r2r],check=True)
+        print("sudo works well, R2R installation completed.")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred during R2R installation: {e}")
+    except Exception as e:
+        print(f'An unexpected error occurred: {e}')
 
 def check_input_folder(input_folder):
     if not input_folder.exists() or not input_folder.is_dir():
@@ -1239,10 +1267,13 @@ def starter_function():
     print('SMDesigner3_test is running')
 #if __name__ == "__main__":
     script_path = Path(__file__).parents[0]
-    #print('SMDesigner3_test is runing')
+    print(Path(__file__))
+    print('R2R install file at')
+    print(script_path)
     
     r2r_install_path = script_path / 'R2R_install.sh'
-    print(script_path)
+    print('R2R install path and file')
+    print(r2r_install_path)
     try:
         if is_r2r_installed():
 
@@ -1255,6 +1286,7 @@ def starter_function():
                 if "--run-r2r" in sys.argv:
                     main_r2r_test(input_folder)
             else:
+                print('start analysis sample, main_sample')
                 main_sample(input_folder)
                 if "--run-r2r" in sys.argv:
                     main_r2r_sample(input_folder)
