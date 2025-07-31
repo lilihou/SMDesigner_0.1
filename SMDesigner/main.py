@@ -19,7 +19,7 @@ def get_user_input():
         if input_folder_name == 'test':
             input_folder_test = script_path / 'test'
             if check_input_folder(input_folder_test):
-                #print(input_folder_test)
+                print(f"input sample path is: '{input_folder_test}'.")
                 return input_folder_test
         elif input_folder_name.lower() == 'exit':
             print('Exit program.')
@@ -98,7 +98,7 @@ def process_files_for_r2r(input_folder, output_folder_r2r):
 '''
 ############################################################process_noted_line and make structure line common
 def process_files_for_seq_struc(input_folder_r2r, output_folder_seq_struc, no_struc_ribo_file):
-    #print('process_files_for_seq_struc start')
+    print('process_files_for_seq_struc structure common start')
     files_seq_struc = [f for f in os.listdir(input_folder_r2r) if f.endswith('.cons.sto')]
     #print(files_seq_struc)
     for file_seq_struc in files_seq_struc:
@@ -106,7 +106,7 @@ def process_files_for_seq_struc(input_folder_r2r, output_folder_seq_struc, no_st
     #print('process_files_for_seq_struc ended')
 
 def process_single_seq_struc_file(input_folder_r2r, output_folder_seq_struc, file_seq_struc, no_struc_ribo_file):
-    #print('process_single_seq_struc_file start')
+    print('process_single_seq_struc_file .seqStruc start')
     input_file_seq_struc = input_folder_r2r / file_seq_struc
     output_file_seq_struc = output_folder_seq_struc / f'{file_seq_struc.strip()[0:-9]}.seqStruc'
 
@@ -116,10 +116,10 @@ def process_single_seq_struc_file(input_folder_r2r, output_folder_seq_struc, fil
         for j_seq_struc in ls_uni_seq:
             line1_seq_struc = j_seq_struc + '\n'
             fo_seq_struc.write(line1_seq_struc)
-    #print('process_single_seq_struc_file ended')
+    print('process_single_seq_struc_file .seqStruc ended')
 
 def process_seq_struc_lines(input_file, no_struc_ribo_file):
-    #print('process_seq_struc_lines start')
+    print('process_seq_struc_lines start')
     ls_uni_seq = []
     with open(input_file, "r",encoding='utf-8') as fi_seq_struc:
         ls_seq_struc = fi_seq_struc.readlines()
@@ -537,7 +537,7 @@ def process_files_for_struc_note(input_fold_seq_stuc,output_folder_seq_struc_add
     for file_seq_struc in files_seq_struc:
         process_single_seq_struc_file1(input_fold_seq_stuc, output_folder_seq_struc_add, file_seq_struc)
 def process_single_seq_struc_file1(input_fold_seq_stuc, output_folder_seq_struc_add, file_seq_struc):
-    print('process_single_seq_struc_file1 start')
+    print('process_single_seq_struc_file1 .seqStrucAdd start')
     input_file=input_fold_seq_stuc / file_seq_struc
     output_file=output_folder_seq_struc_add / (file_seq_struc[0:-9]+".seqStrucAdd")
     foo=open('no_struc_mark.txt','w')
