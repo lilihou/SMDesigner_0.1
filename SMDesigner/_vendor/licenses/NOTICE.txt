@@ -1,0 +1,17 @@
+This distribution includes R2R 1.0.6, by Zasha Weinberg, and its embedded
+Infernal/Squid components by Sean R. Eddy and contributors. Preserve the
+upstream notices in the included source archive, including per-file notices.
+
+Original archive: https://sourceforge.net/projects/weinberg-r2r/files/R2R-1.0.6.tgz/download
+SHA-256: 1ba8f51db92866ebe1aeb3c056f17489bceefe2f67c5c0bbdfbddc0eee17743d
+
+The original corresponding source is included under _vendor/source, together
+with build_r2r.py documenting and applying every modification: ARM64 configure
+recognition, an array constructor typo fix, and std::isfinite compatibility.
+The same build script is available at scripts/build_r2r.py in the source release.
+Copy it there in a source checkout to rebuild. No proprietary CFSQP solver or
+external NLopt library is linked into these builds.
+
+Citation: Weinberg Z, Breaker RR. R2R—software to speed the depiction of
+aesthetic consensus RNA secondary structures. BMC Bioinformatics 12, 3 (2011).
+https://doi.org/10.1186/1471-2105-12-3

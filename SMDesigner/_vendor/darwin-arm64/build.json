@@ -1,0 +1,13 @@
+{
+  "version": "1.0.6",
+  "source_sha256": "1ba8f51db92866ebe1aeb3c056f17489bceefe2f67c5c0bbdfbddc0eee17743d",
+  "platform": "darwin-arm64",
+  "patches": [
+    "config.sub",
+    "src/multiDimVector.h",
+    "src/SymbolicMath.h",
+    "src/GSCConsensus.cpp"
+  ],
+  "build_script": "scripts/build_r2r.py",
+  "macos_deployment_target": "11.0"
+}

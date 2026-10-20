@@ -33,69 +33,22 @@ def get_user_input():
             else:
                 print("Invalid input folder. Please try again or you can type 'exit' to quit program.")
 def create_output_folders(output_folders):
-    #print('create_output_folders start')
-    #seq_struc_riboswitch_add
     for folder in output_folders:
-        if not folder.exists():
-            try:
-                folder.mkdir(parents=True, exist_ok=True)
-                #print(f'Created folder: {folder}')
-            except Exception as e:
-                print(f'Error creating folder {folder}: {e}')
+        folder.mkdir(parents=True, exist_ok=True)
+
 ############################################################process_with_R2R
 
 
 def process_files_for_r2r(input_folder, output_folder_r2r):
-    print('process_files_for_r2r start')
-    # ... (your existing code)
-    #files_r2r = os.listdir(input_folder)
-    files_r2r = [f for f in os.listdir(input_folder) if f.endswith('.sto')]
-    
-    if not files_r2r:
-        #print("No '.sto' files found in the folder. Exiting the program.")
-        exit()
-    else:
-        #print(files_r2r)
+    from SMDesigner.r2r import run_consensus
+    files = sorted(p for p in input_folder.glob('*.sto') if p.is_file())
+    if not files:
+        raise ValueError(f"No .sto files found in {input_folder}")
+    for source in files:
+        run_consensus(source, output_folder_r2r / (source.stem + '.cons.sto'))
 
-        for file in files_r2r:
-            #print(file)
-            file_name_r2r = '.'.join(file.split('.')[0:-1])
-            input_file_r2r = input_folder / file
-            output_file_r2r = output_folder_r2r / f'{file_name_r2r}.cons.sto'
-
-        # Construct the r2r command with the updated path
-            command_r2r = [
-                'r2r',
-                '--GSC-weighted-consensus',
-                str(input_file_r2r),
-                str(output_file_r2r),
-                '3', '0.97', '0.9', '0.75',
-                '4', '0.97', '0.9', '0.75', '0.5', '0.1'
-            ]
-
-        # Execute the r2r command
-            try:
-                result = os.system(' '.join(command_r2r))
-                if result != 0:
-                    print(f"Error processing {input_file_r2r}, R2R runing false")
-                    break
-                else:
-                    #print(f"Processed {input_file_r2r} successfully.")
-                    pass
-                # ... (rest of your code)
-            except Exception as e:
-                print(f"Error processing {input_file_r2r}: {e}")
             # ... (error handling)
-'''
-def process_files_for_r2r(input_folder, output_folder_r2r):
-    files_r2r = os.listdir(input_folder)
-    for file in files_r2r:
-        file_name_r2r = '.'.join(file.split('.')[0:-1])
-        input_file_r2r = input_folder / file
-        output_file_r2r = output_folder_r2r / f'{file_name_r2r}.cons.sto'
-        command_r2r = f'r2r --GSC-weighted-consensus {input_file_r2r} {output_file_r2r} 3 0.97 0.9 0.75 4 0.97 0.9 0.75 0.5 0.1'
-        os.system(command_r2r)
-'''
+
 ############################################################process_noted_line and make structure line common
 def process_files_for_seq_struc(input_folder_r2r, output_folder_seq_struc, no_struc_ribo_file):
     print('process_files_for_seq_struc structure common start')
@@ -112,6 +65,8 @@ def process_single_seq_struc_file(input_folder_r2r, output_folder_seq_struc, fil
 
     ls_uni_seq = process_seq_struc_lines(input_file_seq_struc, no_struc_ribo_file)
 
+    if not ls_uni_seq:
+        return
     with open(output_file_seq_struc, "w") as fo_seq_struc:
         for j_seq_struc in ls_uni_seq:
             line1_seq_struc = j_seq_struc + '\n'
@@ -119,67 +74,50 @@ def process_single_seq_struc_file(input_folder_r2r, output_folder_seq_struc, fil
     print('process_single_seq_struc_file .seqStruc ended')
 
 def process_seq_struc_lines(input_file, no_struc_ribo_file):
-    print('process_seq_struc_lines start')
-    ls_uni_seq = []
-    with open(input_file, "r",encoding='utf-8') as fi_seq_struc:
-        ls_seq_struc = fi_seq_struc.readlines()
+    sequences = {}
+    structure = ''
+    covariance = ''
+    for line in Path(input_file).read_text(encoding='utf-8').splitlines():
+        fields = line.split()
+        if not fields or line.startswith('//'):
+            continue
+        if line.startswith('#=GC SS_cons'):
+            structure += fields[-1]
+        elif line.startswith('#=GC cov_SS_cons'):
+            covariance += fields[-1]
+        elif not line.startswith('#'):
+            if len(fields) != 2:
+                raise ValueError(f"Invalid sequence row in {input_file}: {line}")
+            name, sequence = fields
+            sequences[name] = sequences.get(name, '') + sequence
+    structure = structure.translate(str.maketrans('({[)}]_-:~,', '<<<>>>.....'))
+    if not structure:
+        raise ValueError(f"Missing SS_cons annotation in {input_file}")
+    if '<' not in structure and '>' not in structure:
+        message = f"{input_file}: no paired structure; skipped\n"
+        if hasattr(no_struc_ribo_file, 'write'):
+            no_struc_ribo_file.write(message)
+        else:
+            with open(no_struc_ribo_file, 'a', encoding='utf-8') as log:
+                log.write(message)
+        return []
+    depth = 0
+    for symbol in structure:
+        if symbol not in '<>.':
+            raise ValueError(f"Unsupported structure symbol {symbol!r} in {input_file}")
+        depth += (symbol == '<') - (symbol == '>')
+        if depth < 0:
+            raise ValueError(f"Unbalanced structure in {input_file}")
+    if depth:
+        raise ValueError(f"Unbalanced structure in {input_file}")
+    if len(covariance) != len(structure):
+        raise ValueError(f"Missing or mismatched cov_SS_cons annotation in {input_file}")
+    if any(len(seq) != len(structure) for seq in sequences.values()):
+        raise ValueError(f"Sequence and structure lengths differ in {input_file}")
+    rows = [f'{name:<45} {seq.upper()}' for name, seq in sequences.items()]
+    rows += [f'#=GC SS_cons {structure}', f'#=GC cov_SS_cons {covariance}']
+    return rows
 
-        for line_seq_struc in ls_seq_struc:
-            if line_seq_struc.startswith('#'):
-                a=re.findall('^#=GF ',line_seq_struc)
-                e=re.findall('^#=GF NUM_COV',line_seq_struc)
-                b=re.findall('^#=GS |#=GR ',line_seq_struc)
-                c=re.findall('^#=GC con|#=GC col|#=GC RF',line_seq_struc)
-                d=re.findall('# STOCKHOLM 1.0|//',line_seq_struc)
-
-                if b or c or d:
-                    continue
-                elif a and not e:
-                    continue
-                else:
-                    if re.findall('#=GC SS_cons',line_seq_struc):
-                        if ">" not in line_seq_struc:
-                            no_struc_ribo_file.write(input_file)
-
-
-                    #ls_anntate=[]
-                        else:
-                            ls=line_seq_struc.split()
-                            ls_seq='#=GC SS_cons'
-                            line1=re.sub('[\{\[\(]','<',ls[-1])
-                            line2=re.sub('[\}\]\)]','>',line1)
-                            line3 = f'{ls_seq:<45}' + re.sub('[\_\-\:\~\,]', '.', line2)
-
-                            ls_uni_seq.append(line3)
-                    elif re.findall('#=GC cov_SS_cons',line_seq_struc):
-                        ls_cov_id='#=GC cov_SS_cons'
-                        ls_cov=line_seq_struc.split()[-1]
-                        line_cov=f'{ls_cov_id:<45}' + ls_cov
-                        ls_uni_seq.append(line_cov)
-                            #fo.write(line)
-            else:
-
-                #009|FN667741.1/3471117-3471071/1-47
-                #LCLP01000004.1/37559-37400/1-151            AGUUU
-                if '|' not in line_seq_struc:
-                    if '//' in line_seq_struc or line_seq_struc.isspace():
-                        pass
-                    else:
-                        seq_ls1=line_seq_struc.strip().split()
-                        #print(seq_ls1)
-                        seq1=f'{seq_ls1[0]:<45}'+seq_ls1[-1]
-                        ls_uni_seq.append(seq1)
-                else:
-                    ls1=line_seq_struc.strip().split('|')
-                    seq=ls1[1]
-                    if seq in ls_uni_seq:
-                        pass
-                    else:
-                        seq_ls=seq.split()
-                        seq=f'{seq_ls[0]:<45}'+seq_ls[-1]
-                        ls_uni_seq.append(seq)
-        #print('process_seq_struc_lines ended')
-        return ls_uni_seq
         
 ########################################################add_struc_info_lines from test_find_all_loop.py and is part1 of make_mu_structure2_riboswitch.py
 def findloop(string,ls_loop_new,ls_loop1_new):
@@ -198,10 +136,10 @@ def findloop(string,ls_loop_new,ls_loop1_new):
     num10=num10-1
     #print('num10',num10)
     ##############get first structure loop region ls_loop, get string with second struture
-    while re.search('<\.+>',string):
+    while re.search(r'<\.+>',string):
         str5=''
         str4=''
-        nu=re.search('<\.+>',string).span()
+        nu=re.search(r'<\.+>',string).span()
     #num9=nu[1]-nu[0]
         ls_loop.append([nu[0],nu[1]-1])
         for k in range (nu[1]-nu[0]-2):
@@ -212,7 +150,7 @@ def findloop(string,ls_loop_new,ls_loop1_new):
             #str5='<'+str4+'>'
         #print(str4)
         str5='<'+str4+'>'
-        string=re.sub('<\.+>', str5, string,1)
+        string=re.sub(r'<\.+>', str5, string,1)
         string_strc=string
         #string_mu=
 
@@ -488,7 +426,7 @@ def make_strc_info(string):
     ls_temp=[]
     num_stem=0
     num_stem1=0
-    while re.search('<\.+>',string):
+    while re.search(r'<\.+>',string):
         num_cycle+=1
         #string_strc,string,ls_loop,ls_loop_new,ls_loop1,ls_loop1_new
         string_strc,string,ls_loop,ls_loop_new,ls_loop1,ls_loop1_new=findloop(string,ls_loop_new,ls_loop1_new)
@@ -537,87 +475,31 @@ def process_files_for_struc_note(input_fold_seq_stuc,output_folder_seq_struc_add
     for file_seq_struc in files_seq_struc:
         process_single_seq_struc_file1(input_fold_seq_stuc, output_folder_seq_struc_add, file_seq_struc)
 def process_single_seq_struc_file1(input_fold_seq_stuc, output_folder_seq_struc_add, file_seq_struc):
-    print('process_single_seq_struc_file1 .seqStrucAdd start')
-    input_file=input_fold_seq_stuc / file_seq_struc
-    output_file=output_folder_seq_struc_add / (file_seq_struc[0:-9]+".seqStrucAdd")
-    foo=open('no_struc_mark.txt','w')
-    with open(input_file, "r") as fi_seq_struc:
-        with open(output_file,'w') as fo_seq_struc:
-            ls_seq={}
-            ls_num=[]
-            #print(ff)
-            for line in fi_seq_struc.readlines():
-                a=re.findall('^#=GC SS_cons|#=GC cov_SS_cons|#=GF NUM_COV',line)
-                if line=="\n":
-                    pass
-                #elif 'refseqgene' in line:
-                    #str_seq=line.split()[-1]   
-                    #seq=str_seq.replace('-','')
-                    #ls_seq[line.strip()]=len(seq)
-                elif not a:
+    source = input_fold_seq_stuc / file_seq_struc
+    rows = source.read_text().splitlines()
+    structure = next(line.split()[-1] for line in rows if line.startswith('#=GC SS_cons'))
+    covariance = next(line.split()[-1] for line in rows if line.startswith('#=GC cov_SS_cons'))
+    same_stem, mutation_structure = make_strc_info(structure)
+    if len(same_stem.split('/')) != len(structure) or len(mutation_structure.split('/')) != len(structure):
+        raise ValueError(f"Cannot annotate structure in {source}")
+    sequences = []
+    for line in rows:
+        if line and not line.startswith('#'):
+            name, sequence = line.split()
+            length = len(sequence.replace('.', '').replace('-', ''))
+            if length > 20:
+                sequences.append((length, name, sequence))
+    output = output_folder_seq_struc_add / (source.stem + '.seqStrucAdd')
+    with output.open('w') as handle:
+        for length, name, sequence in sorted(sequences):
+            handle.write(f'{name}_{length} {sequence}\n')
+        handle.write(f'#=GC SS_cons {structure}\n#=GC cov_SS_cons {covariance}\n')
+        handle.write(f'#=SMD same_stem {same_stem}\n#=SMD mutation_struc {mutation_structure}\n')
+        handle.write(f'#=SMD stem_count {count_stem(covariance)}\n')
 
-                    str_seq=line.split()[-1]
-                    seq=str_seq.replace('.','')
-                    ls_seq[line.strip()]=len(seq)
-                elif a:
-                    if '#=GC SS_cons' in line:
-                        #fo.write(line)
-                        ls_id2='#=GC SS_cons'
-
-                        line4=f'{ls_id2:<45}'+line.strip().split()[-1]+'\n'
-                        ls=line.strip().split()
-                        #str1='....<<<....<<<<<<<....>>>>>>>..<<..<<<..>>><<<..>>>..>>...>>>.'
-                        str1=ls[-1]
-                        same_stem,Mutation_struc=make_strc_info(str1)
-                        #same_stem=0/1/2/3/s3_0/s3_0/s3_0/7/8/9/s2_0/s2_0/s2_0/13/s1_0/s1_0/16/17/s1_0/s1_0/20/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/28/29/30/31/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/s1_1/39/s2_0/s2_0/s2_0/43/s2_1/s2_1/46/47/s1_2/s1_2/s1_2/51/52/s1_2/s1_2/s1_2/s1_3/s1_3/s1_3/59/60/s1_3/s1_3/s1_3/64/65/s2_1/s2_1/68/69/70/s3_0/s3_0/s3_0/74
-                        #Mutation_struc=5s/5s/5s/5s/21L/22L/23L/7/8/9/16L/17L/18L/13/1L/2L/p/p/2R/1R/20/3L/4L/5L/6L/7L/8L/9L/p/p/p/p/9R/8R/7R/6R/5R/4R/3R/39/18R/17R/16R/43/19L/20L/46/47/10L/11L/12L/p/p/12R/11R/10R/13L/14L/15L/p/p/15R/14R/13R/64/65/20R/19R/68/69/70/23R/22R/21R/3s
-
-                        ls_ss=same_stem.split('/')
-                        ls1=Mutation_struc.split('/')
-                        
-                        string1='#=SMD same_stem'
-                        string2='#=SMD mutation_struc'
-                        line1=f'{string1:<45}'+'/'.join(ls_ss)+'\n'
-                        line2=f'{string2:<45}'+'/'.join(ls1)+'\n'
-                            
-                        #fo.write(line1)
-                        #fo.write(line2)
-                    elif '#=GC cov_SS_cons' in line:
-                        #'#=GC cov_SS_cons                             .....?2202........2..22.22?.......................................................................................?22.2.2.2222...022?2?.........................................?2?....220.222....................................................2022?...222?....................................................?222.................'
-                        #fo.write(line) 
-                        ls3=line.strip().split()
-                        line5_id='#=GC cov_SS_cons'
-                        line5=f'{line5_id:<45}'+ls3[-1]+'\n'
-                        string3='#=SMD stem_count'
-                        line3=f'{string3:<45}'+count_stem(line)+"\n"
-                        #fo.write(line3)
-                    #else:
-                        #line6=line
-            ls_num_seq = sorted(ls_seq.items(),key=lambda x:x[1],reverse = False)
-            #print(ls_num)
-            num_seq=0
-            for k in range(len(ls_num_seq)):
-                if 20<ls_num_seq[k][1]:
-                    num_seq+=1
-                    ls2=ls_num_seq[k][0].split()
-                    #print(ls)
-                    seq_id=ls2[0]+'_'+str(ls_num_seq[k][1])
-                    sequence=ls2[-1]
-                    refseq=f'{seq_id:<45}'+sequence+'\n'
-                    fo_seq_struc.write(refseq)
-            fo_seq_struc.write(line4)
-            fo_seq_struc.write(line1)
-            fo_seq_struc.write(line5)
-            #fo.write(line)
-            fo_seq_struc.write(line2)
-            fo_seq_struc.write(line3)
-            #fo_seq_struc.write(line6)
-            if num_seq==0:
-                ff=file_seq_struc+'\n'
-                foo.write(ff)
 ############################################################make mutation from test_make_mutation.py and make_mu_struc3.py 
 def cov_po(b):
-    if not isinstance(b, str):
+    if not isinstance(b, str) or not b:
         return None
     if b[-1] == 'l':
         return b[0:-1] + 'r'
@@ -706,7 +588,7 @@ def pick_stem(dic1):
             dic_same_cov = {}
             for i in range(len(dic1)):
                 if dic1[i][1] == dic1[0][1]:
-                    dic_same_cov[(dic1[i][0].split('-')[0])] = dic1[i][0].split('-')[1]
+                    dic_same_cov[(dic1[i][0].split('-')[0])] = int(dic1[i][0].split('-')[1])
             dic_same_cov = sorted(dic_same_cov.items(), key=lambda item: item[1], reverse=True)
             return dic_same_cov[0][0][5:]
     return None  # Return None if dic1 is empty
@@ -858,6 +740,8 @@ def mu_po1(num, str5, str3, str1, str4):
                             break
                     except (ValueError, IndexError):
                         continue
+    if len(po) < 4:
+        return [], [], [], []
     if po:
         p1.append(po[0])
         p1.append(po[2])
@@ -896,7 +780,7 @@ def mu_po2(num, str5, str3, str1, str4):
     dic1, dic2, dic3 = stem_cov_num(str5, str3)
     num_conser = 0
     for k in dic3:
-        if k[0].split('-')[0][-1] == num:
+        if k[0].split('-')[0][5:] == num:
             num_conser = int(k[-1])
     if num_conser >= 1:
         for i in range(len(str1)):
@@ -934,6 +818,8 @@ def mu_po2(num, str5, str3, str1, str4):
                         break
                 except (ValueError, IndexError):
                     continue
+    if len(po) < 4:
+        return [], [], [], []
     if po:
         p1.append(po[0])
         p1.append(po[2])
@@ -986,6 +872,8 @@ def mu_po3(num, str5, str3, str1, str4):
                     break
             except (ValueError, IndexError):
                 continue
+    if len(po) < 4:
+        return [], [], [], []
     if po:
         p1.append(po[0])
         p1.append(po[2])
@@ -998,7 +886,6 @@ def process_files_make_mutation(input_folder_structure_add,output_fold_fa):
     print("starting processing mutation")
 
 
-    structure_files=os.listdir(input_folder_structure_add)
     for file in structure_files:
 
         process_single_structure_add(input_folder_structure_add,file,output_fold_fa)
@@ -1028,7 +915,7 @@ def process_single_structure_add(input_folder_structure_add, file, output_fold_f
     str4 = None
     str5 = None
     for line in ls:
-        a = re.findall(r'^\w+\d+', line)  # Use raw string for regex
+        a = bool(line.strip()) and not line.startswith('#')  # Use raw string for regex
         b = re.findall(r'#=GC SS_cons', line)
         c = re.findall(r'#=GC cov_SS_cons', line)
         d = re.findall(r'#=SMD mutation_struc', line)
@@ -1151,85 +1038,43 @@ def process_single_structure_add(input_folder_structure_add, file, output_fold_f
     fo.close()
     print(f"Output written to: {output_file_fa}")
 
-# Main script
-def main_test(input_folder):
-
-    #input_folder = get_user_input()
-    
-    #print(r2r_path)
-    #if input_folder.name=='test':
-    input_folder=input_folder/'demo'
-
-    output_folder_r2r = Path('./SMDesignerTest/riboswitch_cons_sto_test')
-    output_folder_seq_struc = Path('./SMDesignerTest/seq_struc_riboswitch_test/')
-    output_folder_seq_struc_add=Path('./SMDesignerTest/seq_struc_riboswitch_add_test')
-    output_fold_fa=Path('./SMDesignerTest/seq_struc_mu_test')
-    no_struc_ribo_file = 'no_struc_ribo_test.txt'
-
-    output_folders = [output_folder_r2r, output_folder_seq_struc,output_folder_seq_struc_add,output_fold_fa]
-    create_output_folders(output_folders)
-
-# Call your function with the r2r_path parameter
-    process_files_for_r2r(input_folder, output_folder_r2r)
-
-
-
-    #process_files_for_r2r(input_folder, output_folder_r2r)
-    #print('R2R run finished')
-    process_files_for_seq_struc(output_folder_r2r, output_folder_seq_struc, no_struc_ribo_file)
-    #print('common style finished')
-    process_files_for_struc_note(output_folder_seq_struc,output_folder_seq_struc_add)
-    #print('structure feature added' )
-    process_files_make_mutation(output_folder_seq_struc_add,output_fold_fa)
-    #print('mutation design finished')
-    for folder in [output_folder_seq_struc, output_folder_seq_struc_add]:
-        if folder.exists() and folder.is_dir():
-            # Check if the folder is not empty
-            if not os.listdir(folder):
-                # If the folder is empty, remove it
-                folder.rmdir()
-            else:
-                # If the folder is not empty, remove it along with all its contents
-                shutil.rmtree(folder)
-    print('SMDesigner test finished')
-    print(f'you can find test output at {output_fold_fa}')
-
-def main_sample(input_folder):
-    input_folder_sample = input_folder.parents[0]
-    #print(input_folder_sample)
-    output_folder_r2r = input_folder_sample.joinpath( 'r2r_cons_sto')
-    #output_folder_r2r = Path(input_folder_sample+'/sample/r2r_cons_sto/')
-
-    output_folder_seq_struc = input_folder_sample.joinpath('seq_struc')
-    output_folder_seq_struc_add=input_folder_sample.joinpath('seq_struc_add')
-    output_fold_fa=input_folder_sample.joinpath('seq_struc_mu')
-    no_struc_ribo_file = 'no_struc.txt'
-
-    output_folders = [output_folder_r2r, output_folder_seq_struc,output_folder_seq_struc_add,output_fold_fa]
-    create_output_folders(output_folders)
+def run_pipeline(input_folder, output_parent=None, run_r2r=False):
+    from tempfile import mkdtemp, TemporaryDirectory
+    from SMDesigner.r2r_drawing_flag_test import draw_structures
+    input_folder = Path(input_folder).expanduser().resolve()
+    if not input_folder.is_dir():
+        raise ValueError(f"Input directory does not exist: {input_folder}")
+    if not any(p.is_file() for p in input_folder.glob('*.sto')):
+        raise ValueError(f"No .sto files found in {input_folder}")
+    parent = Path(output_parent).expanduser().resolve() if output_parent else input_folder.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    run_dir = Path(mkdtemp(prefix='SMDesigner_results_', dir=parent))
+    consensus = run_dir / 'r2r_cons_sto'
+    fasta = run_dir / 'seq_struc_mu'
+    create_output_folders([consensus, fasta])
+    try:
+        with TemporaryDirectory(prefix='smd-work-') as work:
+            sequence_dir = Path(work) / 'seq_struc'
+            annotation_dir = Path(work) / 'seq_struc_add'
+            create_output_folders([sequence_dir, annotation_dir])
+            process_files_for_r2r(input_folder, consensus)
+            process_files_for_seq_struc(consensus, sequence_dir, run_dir / 'skipped.txt')
+            process_files_for_struc_note(sequence_dir, annotation_dir)
+            process_files_make_mutation(annotation_dir, fasta)
+            if not any(p.stat().st_size for p in fasta.glob('*.mu.fa')):
+                raise ValueError('No mutations generated; check sequence lengths (>20), pairing, and covariation.')
+            if run_r2r:
+                draw_structures(input_folder, run_dir)
+    except Exception as exc:
+        (run_dir / 'FAILED.txt').write_text(str(exc) + '\n')
+        raise
+    print(f'SMDesigner finished. Results: {run_dir}')
+    return run_dir
 
 
-# Call your function with the r2r_path parameter
-    process_files_for_r2r(input_folder, output_folder_r2r)
+def main_test(input_folder, output_parent=None, run_r2r=False):
+    return run_pipeline(Path(input_folder) / 'demo', output_parent or Path.cwd(), run_r2r)
 
-    #process_files_for_r2r(input_folder, output_folder_r2r)
-    print('R2R run finished')
-    process_files_for_seq_struc(output_folder_r2r, output_folder_seq_struc, no_struc_ribo_file)
-    print('common style finished')
-    process_files_for_struc_note(output_folder_seq_struc,output_folder_seq_struc_add)
-    print('structure feature added' )
-    process_files_make_mutation(output_folder_seq_struc_add,output_fold_fa)
-    #print(output_fold_fa)
-    print('SMDesigner mutation design finished')
-    print(f'you can find sample output at {output_fold_fa}')
-    
 
-    for folder in [output_folder_seq_struc, output_folder_seq_struc_add]:
-        if folder.exists() and folder.is_dir():
-            # Check if the folder is not empty
-            if not os.listdir(folder):
-                # If the folder is empty, remove it
-                folder.rmdir()
-            else:
-                # If the folder is not empty, remove it along with all its contents
-                shutil.rmtree(folder)
+def main_sample(input_folder, output_parent=None, run_r2r=False):
+    return run_pipeline(input_folder, output_parent, run_r2r)

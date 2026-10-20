@@ -1,42 +1,55 @@
-# SMDesigner - Structure mutation designer
-SMDesigner automates mutation for conserved RNA structures, ensuring minimal 
-alterations to disrupt the structure, which can affect RNA function. SMDesigner 
-work is based on the consences structure feature of RNA. SMDesigner chooses 
-base pairs for mutation based on the number and position of covariation mutations, 
-as well as the stem's length. Then it makes two types of mutation for each 
-sequence, one is disruptive mutation another is restorative mutation.
-## SMDesigner Install
-SMDesigner comes with setup tools and can be installed using pip:
-Download the package [SMDesigner-1.0.0.tar.gz](https://github.com/lilihou/SMDesigner_0.1/tree/main/dist).        
-Install it using pip with the command: 
+# SMDesigner — Structure mutation designer
 
-    pip install <storage path>SMDesigner-1.0.0.tar.gz. 
-For more details, refer to the README_INSTALL.md file.
-## SMDesigner test running
-To run a test after installing SMDesigner using the command pip install SMDesigner-1.0.0.tar.gz, 
-follow these steps:
-    1. Open your command line interface.
-    2. Type 'SMDesigner' to launch the program.
-    3. Then, type 'test' to run a default test.
-    
-    SMDesigner
-    test
-## SMDesigner running the sample
-After successfully running a test in SMDesigner and seeing the output "test finished," 
-you can proceed to run your own sample data by following these steps:
+SMDesigner designs disruptive and restorative mutations from aligned RNA sequences and a consensus secondary structure in Stockholm (`.sto`) files. This is the updated 1.1.0 copy; see [CHANGELOG.md](CHANGELOG.md) for fixes and validation limits.
 
-    1. Type 'SMDesigner' to launch the program again.
-    2. Type the path to your sample folder to run your sample data. For example, if your sample
-    data is located in a folder named sample_data in the directory 
-    'C:\Users\YourName\Documents', 
-    you should type 
-    'C:\Users\YourName\Documents\sample_data'.
-    
-Drawing the secondary structure for each sequence with flag --–run-r2r.
+## Run from this folder
 
-    1. Type 'SMDesigner --run-r2r' to launch the program with flag function
-    2. Type the 'test' or '<the path to your sample folder>'
+Python 3.9 or later is required. Platform wheels include R2R 1.0.6, so users do not need to install R2R separately. This checkout includes the tested Apple Silicon build. No Python third-party runtime dependencies are required.
 
+```sh
+python3 -m SMDesigner --help
+python3 -m SMDesigner test
+python3 -m SMDesigner "/path/to/input folder" --output-dir "/path/to/results"
+python3 -m SMDesigner "/path/to/input folder" --run-r2r
+```
 
-    
-    
+Without an input argument, SMDesigner prompts for `test`, a folder path, or `exit`. `--run-r2r` adds per-sequence structure PDFs; R2R is required for consensus annotation even without this flag.
+
+You can also install this copy in a dedicated virtual environment:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install dist/smdesigner-1.1.0-*.whl
+SMDesigner test
+```
+
+## Inputs and outputs
+
+Each input file must have aligned sequences and a balanced `#=GC SS_cons` annotation. Nested `()`, `[]`, and `{}` brackets are normalized to `<>`; crossing pseudoknots are not supported. Interleaved Stockholm blocks are concatenated. Missing annotations and length mismatches produce explicit errors. Unpaired structures are logged and skipped. As in the original selection workflow, only sequences longer than 20 ungapped bases are considered.
+
+Every run creates a unique `SMDesigner_results_*` folder. Its default parent is the input folder's parent, or the current directory for the bundled test. `--output-dir` overrides that parent.
+
+- `r2r_cons_sto/`: R2R consensus annotations.
+- `seq_struc_mu/`: FASTA records (`w` wild type, `m..._1` disruptive, `m..._2` restorative).
+- `skipped.txt`: unpaired structures, when present.
+- `r2r_cons_add/`, `r2r_meta/`, `r2r_meta_pdf/`: optional drawing artifacts.
+- `FAILED.txt`: error details if a run fails; partial artifacts are retained for diagnosis.
+
+Intermediate annotation files use a private temporary directory. Existing sibling directories are never used for cleanup. A run with no mutations fails explicitly rather than reporting success. Errors exit with status 1.
+
+## Tests
+
+```sh
+python3 -W error -m unittest discover -s tests -v
+```
+
+See [README_INSTALL.md](README_INSTALL.md) for R2R setup.
+
+## Bundled R2R
+
+SMDesigner uses an explicit `SMDESIGNER_R2R` executable override first, then the matching bundled binary, then R2R on PATH for source-only installations. It performs no downloads or compilation at runtime. The original source archive, build modifications, attribution and license notices ship inside the wheel under `SMDesigner/_vendor`.
+
+For Windows, install and run the Linux package inside WSL. Native Windows Python cannot run the Linux executable. The original tool was tested in WSL; this new bundle still needs a WSL validation run. The release workflow builds Ubuntu 22.04 x86_64 wheels, targeting Ubuntu 22.04 or newer (including WSL), not every Linux distribution. Broad manylinux/PyPI distribution is a later release step.
+
+Maintainers: `python scripts/build_r2r.py` builds the local binary; `python -m build` builds the distributions. See README_INSTALL.md for complete commands and current verification status.
